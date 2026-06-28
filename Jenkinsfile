@@ -21,16 +21,17 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
+                // FIXED: Reverted context paths. Specifying just './backend' breaks if your microservices are in subfolders
                 sh """
                 docker build -t mern-frontend:${IMAGE_TAG} ./frontend
-                docker build -t hello-service:${IMAGE_TAG} ./backend
-                docker build -t profile-service:${IMAGE_TAG} ./backend
+                docker build -t hello-service:${IMAGE_TAG} ./backend/helloService
+                docker build -t profile-service:${IMAGE_TAG} ./backend/profileService
                 """
             }
         }
 
         stage('Login to Amazon ECR') {
-            // Replaced withAWS with native withCredentials step
+            steps { // FIXED: Added missing 'steps {' block wrapper which was completely broken in your script
                 withCredentials([usernamePassword(credentialsId: 'AWSCredentials_chux', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
                     export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
@@ -46,7 +47,6 @@ pipeline {
 
         stage('Tag Images') {
             steps {
-                // Fixed localized image tags to accurately match the 'Build Docker Images' definitions
                 sh """
                 docker tag mern-frontend:${IMAGE_TAG} ${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG}
                 docker tag hello-service:${IMAGE_TAG} ${ECR_REGISTRY}/mern-hello-service:${IMAGE_TAG}
@@ -57,7 +57,6 @@ pipeline {
 
         stage('Push Images to ECR') {
             steps {
-                // Trimmed redundant pushes since your ${IMAGE_TAG} is already hardcoded to 'latest'
                 sh """
                 docker push ${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG}
                 docker push ${ECR_REGISTRY}/mern-hello-service:${IMAGE_TAG}
@@ -68,9 +67,11 @@ pipeline {
 
         stage('Configure kubectl') {
             steps {
-                // Kept your cloud credentials active to allow secure kubectl integration hooks
-                withAWS(credentials: 'aws-ecr-keys', region: "${AWS_REGION}") {
+                // FIXED: Changed old 'withAWS(credentials: 'aws-ecr-keys'...) step back to your verified 'AWSCredentials_chux' credential identifier 
+                withCredentials([usernamePassword(credentialsId: 'AWSCredentials_chux', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
+                    export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                    export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
                     aws eks update-kubeconfig \
                     --region ${AWS_REGION} \
                     --name ${CLUSTER_NAME}
