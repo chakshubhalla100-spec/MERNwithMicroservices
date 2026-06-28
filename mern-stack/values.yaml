@@ -1,0 +1,21 @@
+global:
+  region: ap-south-1
+  accountID: "514454346119"
+
+frontend:
+  replicaCount: 2
+  image: mern-frontend
+  tag: latest
+  port: 80
+
+helloService:
+  replicaCount: 1
+  image: mern-hello-service
+  tag: latest
+  port: 3001 # Update with your hello-service port if different
+
+profileService:
+  replicaCount: 1
+  image: mern-profile-service
+  tag: latest
+  port: 3002 # Update with your profile-service port if different

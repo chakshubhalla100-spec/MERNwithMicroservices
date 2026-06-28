@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: profile-service
+spec:
+  replicas: {{ .Values.profileService.replicaCount }}
+  selector:
+    matchLabels:
+      app: profile-service
+  template:
+    metadata:
+      labels:
+        app: profile-service
+    spec:
+      containers:
+        - name: profile-service
+          image: "{{ .Values.global.accountID }}.dkr.ecr.{{ .Values.global.region }}://{{ .Values.profileService.image }}:{{ .Values.profileService.tag }}"
+          ports:
+            - containerPort: {{ .Values.profileService.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: profile-service-svc
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.profileService.port }}
+      targetPort: {{ .Values.profileService.port }}
+  selector:
+    app: profile-service

@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-service
+spec:
+  replicas: {{ .Values.helloService.replicaCount }}
+  selector:
+    matchLabels:
+      app: hello-service
+  template:
+    metadata:
+      labels:
+        app: hello-service
+    spec:
+      containers:
+        - name: hello-service
+          image: "{{ .Values.global.accountID }}.dkr.ecr.{{ .Values.global.region }}://{{ .Values.helloService.image }}:{{ .Values.helloService.tag }}"
+          ports:
+            - containerPort: {{ .Values.helloService.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-service-svc
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.helloService.port }}
+      targetPort: {{ .Values.helloService.port }}
+  selector:
+    app: hello-service

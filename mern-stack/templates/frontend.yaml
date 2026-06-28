@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mern-frontend
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  selector:
+    matchLabels:
+      app: mern-frontend
+  template:
+    metadata:
+      labels:
+        app: mern-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ .Values.global.accountID }}.dkr.ecr.{{ .Values.global.region }}://{{ .Values.frontend.image }}:{{ .Values.frontend.tag }}"
+          ports:
+            - containerPort: {{ .Values.frontend.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mern-frontend-service
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: {{ .Values.frontend.port }}
+  selector:
+    app: mern-frontend
