@@ -80,41 +80,27 @@ pipeline {
                     echo "===== Configuring Kubeconfig ====="
                     aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME}
 
-                    echo "===== Applying Base Infrastructure Configurations ====="
-                    # Change './k8s' if your deployment YAML files are in a different folder name
-                    if [ -d "./k8s" ]; then
-                        kubectl apply -f ./k8s/ -n ${NAMESPACE}
-                    elif [ -d "./kubernetes" ]; then
-                        kubectl apply -f ./kubernetes/ -n ${NAMESPACE}
-                    else
-                        echo "Warning: No manifest folder detected. Attempting direct file match."
-                        kubectl apply -f . -n ${NAMESPACE} --recursive || true
-                    fi
-
-                    echo "===== Executing EKS Deployment Image Updates ====="
-                    kubectl set image deployment/mern-frontend \
-                    frontend=${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG} \
-                    -n ${NAMESPACE}
-
-                    kubectl set image deployment/hello-service \
-                    hello-service=${ECR_REGISTRY}/mern-hello-service:${IMAGE_TAG} \
-                    -n ${NAMESPACE}
-
-                    kubectl set image deployment/profile-service \
-                    profile-service=${ECR_REGISTRY}/mern-profile-service:${IMAGE_TAG} \
-                    -n ${NAMESPACE}
+                    echo "===== Deploying Application via Helm ====="
+                    # This installs or updates your helm chart release named 'mern-release' using your active repository root
+                    helm upgrade --install mern-release . \
+                      --namespace ${NAMESPACE} \
+                      --set frontend.image=${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG} \
+                      --set helloService.image=${ECR_REGISTRY}/mern-hello-service:${IMAGE_TAG} \
+                      --set profileService.image=${ECR_REGISTRY}/mern-profile-service:${IMAGE_TAG}
 
                     echo "===== Waiting for App Rollouts to Finish ====="
+                    # We keep kubectl verification commands here to track the status of the resources Helm created
                     kubectl rollout status deployment/mern-frontend -n ${NAMESPACE}
                     kubectl rollout status deployment/hello-service -n ${NAMESPACE}
                     kubectl rollout status deployment/profile-service -n ${NAMESPACE}
 
                     echo "===== Verifying Target Environment Status ====="
-                    kubectl get deployments -n ${NAMESPACE}
+                    kubectl get pods -n ${NAMESPACE}
                     """
                 }
             }
         }
+ 
 
 
     post {
