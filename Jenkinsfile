@@ -30,10 +30,11 @@ pipeline {
         }
 
         stage('Login to Amazon ECR') {
-            steps {
-                // Resolved the floating credentials block directly inside the proper login stage steps
-                withAWS(credentials: 'AWSCredentials_chux', region: "${AWS_REGION}") {
+            // Replaced withAWS with native withCredentials step
+                withCredentials([usernamePassword(credentialsId: 'AWSCredentials_chux', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
+                    export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                    export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
                     aws ecr get-login-password --region ${AWS_REGION} | \
                     docker login \
                     --username AWS \
