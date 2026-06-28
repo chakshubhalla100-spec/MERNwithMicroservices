@@ -70,7 +70,7 @@ pipeline {
         }
 
         // FIXED: Combined 4 separate stages into 1 unified stage using a single credentials wrapper session block
-        stage('Connect & Deploy to EKS Cluster') {
+         stage('Connect & Deploy to EKS Cluster') {
             steps {
                 withCredentials([aws(credentialsId: '514454346119', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
@@ -79,6 +79,17 @@ pipeline {
                     
                     echo "===== Configuring Kubeconfig ====="
                     aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME}
+
+                    echo "===== Applying Base Infrastructure Configurations ====="
+                    # Change './k8s' if your deployment YAML files are in a different folder name
+                    if [ -d "./k8s" ]; then
+                        kubectl apply -f ./k8s/ -n ${NAMESPACE}
+                    elif [ -d "./kubernetes" ]; then
+                        kubectl apply -f ./kubernetes/ -n ${NAMESPACE}
+                    else
+                        echo "Warning: No manifest folder detected. Attempting direct file match."
+                        kubectl apply -f . -n ${NAMESPACE} --recursive || true
+                    fi
 
                     echo "===== Executing EKS Deployment Image Updates ====="
                     kubectl set image deployment/mern-frontend \
@@ -99,21 +110,12 @@ pipeline {
                     kubectl rollout status deployment/profile-service -n ${NAMESPACE}
 
                     echo "===== Verifying Target Environment Status ====="
-                    echo "===== Pods ====="
-                    kubectl get pods -n ${NAMESPACE}
-
-                    echo ""
-                    echo "===== Services ====="
-                    kubectl get svc -n ${NAMESPACE}
-
-                    echo ""
-                    echo "===== Deployments ====="
                     kubectl get deployments -n ${NAMESPACE}
                     """
                 }
             }
         }
-    }
+
 
     post {
         success {
