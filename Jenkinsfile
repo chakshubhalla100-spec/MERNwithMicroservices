@@ -15,24 +15,24 @@ pipeline {
         stage('Checkout Source') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/chakshubhalla100-spec/MERNwithMicroservices.git'
+                    url: 'https://github.com'
             }
         }
 
         stage('Build Docker Images') {
             steps {
-                // FIXED: Reverted context paths. Specifying just './backend' breaks if your microservices are in subfolders
                 sh """
                 docker build -t mern-frontend:${IMAGE_TAG} ./frontend
-                docker build -t hello-service:${IMAGE_TAG} ./backend
-                docker build -t profile-service:${IMAGE_TAG} ./backend
+                docker build -t hello-service:${IMAGE_TAG} ./backend/helloService
+                docker build -t profile-service:${IMAGE_TAG} ./backend/profileService
                 """
             }
         }
 
         stage('Login to Amazon ECR') {
-            steps { // FIXED: Added missing 'steps {' block wrapper which was completely broken in your script
-                withCredentials([usernamePassword(credentialsId: '514454346119', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+            steps {
+                // FIXED: Changed usernamePassword wrapper to use native AWS credentials bindings
+                withCredentials([aws(credentialsId: '514454346119', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
                     export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                     export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
@@ -67,8 +67,8 @@ pipeline {
 
         stage('Configure kubectl') {
             steps {
-                // FIXED: Changed old 'withAWS(credentials: 'aws-ecr-keys'...) step back to your verified 'AWSCredentials_chux' credential identifier 
-                withCredentials([usernamePassword(credentialsId: 'AWSCredentials_chux', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                // FIXED: Changed usernamePassword wrapper to use native AWS credentials bindings
+                withCredentials([aws(credentialsId: '514454346119', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
                     export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                     export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
