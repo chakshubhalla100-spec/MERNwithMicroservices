@@ -78,15 +78,6 @@ pipeline {
                     echo "===== Configuring Kubeconfig ====="
                     aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME}
 
-                    // echo "===== Deploying Application via Helm ====="
-                    // helm upgrade --install mern-release ./mern-stack \
-                    //   --namespace ${NAMESPACE} \
-                    //   --set frontend.image.repository=${ECR_REGISTRY}/mern-frontend \
-                    //   --set frontend.image.tag=${IMAGE_TAG} \
-                    //   --set helloService.image.repository=${ECR_REGISTRY}/mern-hello-service \
-                    //   --set helloService.image.tag=${IMAGE_TAG} \
-                    //   --set profileService.image.repository=${ECR_REGISTRY}/mern-profile-service \
-                    //   --set profileService.image.tag=${IMAGE_TAG}
 
                     echo "===== Deploying Application via Helm ====="
                     helm upgrade --install mern-release ./mern-stack \
