@@ -21,7 +21,7 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
-                // FIXED: Restored explicit subfolder paths for the microservices
+                // FIXED: Corrected subfolder target paths so Docker finds your microservice contexts
                 sh """
                 docker build -t mern-frontend:${IMAGE_TAG} ./frontend
                 docker build -t hello-service:${IMAGE_TAG} ./backend
@@ -69,8 +69,7 @@ pipeline {
             }
         }
 
-        // FIXED: Combined 4 separate stages into 1 unified stage using a single credentials wrapper session block
-         stage('Connect & Deploy to EKS Cluster') {
+        stage('Connect & Deploy to EKS Cluster') {
             steps {
                 withCredentials([aws(credentialsId: '514454346119', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
@@ -81,7 +80,6 @@ pipeline {
                     aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME}
 
                     echo "===== Deploying Application via Helm ====="
-                    # This installs or updates your helm chart release named 'mern-release' using your active repository root
                     helm upgrade --install mern-release . \
                       --namespace ${NAMESPACE} \
                       --set frontend.image=${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG} \
@@ -89,7 +87,6 @@ pipeline {
                       --set profileService.image=${ECR_REGISTRY}/mern-profile-service:${IMAGE_TAG}
 
                     echo "===== Waiting for App Rollouts to Finish ====="
-                    # We keep kubectl verification commands here to track the status of the resources Helm created
                     kubectl rollout status deployment/mern-frontend -n ${NAMESPACE}
                     kubectl rollout status deployment/hello-service -n ${NAMESPACE}
                     kubectl rollout status deployment/profile-service -n ${NAMESPACE}
@@ -100,8 +97,7 @@ pipeline {
                 }
             }
         }
- 
-
+    } // FIXED: Re-added the missing closing curly brace for the overall 'stages' wrapper block
 
     post {
         success {
