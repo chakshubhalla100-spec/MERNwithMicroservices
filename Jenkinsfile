@@ -40,6 +40,11 @@ pipeline {
                     docker login \
                     --username AWS \
                     --password-stdin ${ECR_REGISTRY}
+                    
+                    # Automatically create the ECR repositories if they do not exist
+                    aws ecr create-repository --repository-name mern-frontend --region ${AWS_REGION} || true
+                    aws ecr create-repository --repository-name mern-hello-service --region ${AWS_REGION} || true
+                    aws ecr create-repository --repository-name mern-profile-service --region ${AWS_REGION} || true
                     """
                 }
             }
