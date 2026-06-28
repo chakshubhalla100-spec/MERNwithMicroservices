@@ -23,8 +23,8 @@ pipeline {
             steps {
                 sh """
                 docker build -t mern-frontend:${IMAGE_TAG} ./frontend
-                docker build -t hello-service:${IMAGE_TAG} ./backend/helloService
-                docker build -t profile-service:${IMAGE_TAG} ./backend/profileService
+                docker build -t hello-service:${IMAGE_TAG} ./backend
+                docker build -t profile-service:${IMAGE_TAG} ./backend
                 """
             }
         }
