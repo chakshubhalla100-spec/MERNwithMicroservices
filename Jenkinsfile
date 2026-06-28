@@ -11,7 +11,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout Source') {
             steps {
                 git branch: 'main',
@@ -31,11 +30,10 @@ pipeline {
 
         stage('Login to Amazon ECR') {
             steps {
+                // withCredentials automatically binds AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to the shell environment
                 withCredentials([aws(credentialsId: '514454346119', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
-                    export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                    export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    aws ecr get-login-password --region ${IMAGE_TAG == 'latest' ? AWS_REGION : AWS_REGION} | \
                     docker login \
                     --username AWS \
                     --password-stdin ${ECR_REGISTRY}
@@ -72,28 +70,15 @@ pipeline {
             steps {
                 withCredentials([aws(credentialsId: '514454346119', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
-                    export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                    export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                    
                     echo "===== Configuring Kubeconfig ====="
                     aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME}
 
-                    // echo "===== Deploying Application via Helm ====="
-                    // helm upgrade --install mern-release ./mern-stack \
-                    //   --namespace ${NAMESPACE} \
-                    //   --set frontend.image.repository=${ECR_REGISTRY}/mern-frontend \
-                    //   --set frontend.image.tag=${IMAGE_TAG} \
-                    //   --set helloService.image.repository=${ECR_REGISTRY}/mern-hello-service \
-                    //   --set helloService.image.tag=${IMAGE_TAG} \
-                    //   --set profileService.image.repository=${ECR_REGISTRY}/mern-profile-service \
-                    //   --set profileService.image.tag=${IMAGE_TAG}
-
                     echo "===== Deploying Application via Helm ====="
                     helm upgrade --install mern-release ./mern-stack \
-                    --namespace ${NAMESPACE} \
-                    --set frontend.image="${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG}" \
-                    --set helloService.image="${ECR_REGISTRY}/mern-hello-service:${IMAGE_TAG}" \
-                    --set profileService.image="${ECR_REGISTRY}/mern-profile-service:${IMAGE_TAG}"
+                      --namespace ${NAMESPACE} \
+                      --set frontend.image="${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG}" \
+                      --set helloService.image="${ECR_REGISTRY}/mern-hello-service:${IMAGE_TAG}" \
+                      --set profileService.image="${ECR_REGISTRY}/mern-profile-service:${IMAGE_TAG}"
 
                     echo "===== Waiting for App Rollouts to Finish ====="
                     kubectl rollout status deployment/mern-frontend -n ${NAMESPACE}
@@ -106,7 +91,7 @@ pipeline {
                 }
             }
         }
-    } // FIXED: Properly aligned wrapper boundary closure parameter formatting
+    }
 
     post {
         success {
