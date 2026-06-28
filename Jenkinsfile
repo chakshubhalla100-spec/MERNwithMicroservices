@@ -21,6 +21,7 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
+                // FIXED: Restored explicit subfolder paths for the microservices
                 sh """
                 docker build -t mern-frontend:${IMAGE_TAG} ./frontend
                 docker build -t hello-service:${IMAGE_TAG} ./backend
@@ -31,7 +32,6 @@ pipeline {
 
         stage('Login to Amazon ECR') {
             steps {
-                // FIXED: Changed usernamePassword wrapper to use native AWS credentials bindings
                 withCredentials([aws(credentialsId: '514454346119', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
                     export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
@@ -41,7 +41,6 @@ pipeline {
                     --username AWS \
                     --password-stdin ${ECR_REGISTRY}
                     
-                    # Automatically create the ECR repositories if they do not exist
                     aws ecr create-repository --repository-name mern-frontend --region ${AWS_REGION} || true
                     aws ecr create-repository --repository-name mern-hello-service --region ${AWS_REGION} || true
                     aws ecr create-repository --repository-name mern-profile-service --region ${AWS_REGION} || true
@@ -70,63 +69,48 @@ pipeline {
             }
         }
 
-        stage('Configure kubectl') {
+        // FIXED: Combined 4 separate stages into 1 unified stage using a single credentials wrapper session block
+        stage('Connect & Deploy to EKS Cluster') {
             steps {
-                // FIXED: Changed usernamePassword wrapper to use native AWS credentials bindings
                 withCredentials([aws(credentialsId: '514454346119', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
                     export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                     export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                    aws eks update-kubeconfig \
-                    --region ${AWS_REGION} \
-                    --name ${CLUSTER_NAME}
+                    
+                    echo "===== Configuring Kubeconfig ====="
+                    aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME}
+
+                    echo "===== Executing EKS Deployment Image Updates ====="
+                    kubectl set image deployment/mern-frontend \
+                    frontend=${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG} \
+                    -n ${NAMESPACE}
+
+                    kubectl set image deployment/hello-service \
+                    hello-service=${ECR_REGISTRY}/mern-hello-service:${IMAGE_TAG} \
+                    -n ${NAMESPACE}
+
+                    kubectl set image deployment/profile-service \
+                    profile-service=${ECR_REGISTRY}/mern-profile-service:${IMAGE_TAG} \
+                    -n ${NAMESPACE}
+
+                    echo "===== Waiting for App Rollouts to Finish ====="
+                    kubectl rollout status deployment/mern-frontend -n ${NAMESPACE}
+                    kubectl rollout status deployment/hello-service -n ${NAMESPACE}
+                    kubectl rollout status deployment/profile-service -n ${NAMESPACE}
+
+                    echo "===== Verifying Target Environment Status ====="
+                    echo "===== Pods ====="
+                    kubectl get pods -n ${NAMESPACE}
+
+                    echo ""
+                    echo "===== Services ====="
+                    kubectl get svc -n ${NAMESPACE}
+
+                    echo ""
+                    echo "===== Deployments ====="
+                    kubectl get deployments -n ${NAMESPACE}
                     """
                 }
-            }
-        }
-
-        stage('Deploy to EKS') {
-            steps {
-                sh """
-                kubectl set image deployment/mern-frontend \
-                frontend=${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG} \
-                -n ${NAMESPACE}
-
-                kubectl set image deployment/hello-service \
-                hello-service=${ECR_REGISTRY}/mern-hello-service:${IMAGE_TAG} \
-                -n ${NAMESPACE}
-
-                kubectl set image deployment/profile-service \
-                profile-service=${ECR_REGISTRY}/mern-profile-service:${IMAGE_TAG} \
-                -n ${NAMESPACE}
-                """
-            }
-        }
-
-        stage('Wait for Rollout') {
-            steps {
-                sh """
-                kubectl rollout status deployment/mern-frontend -n ${NAMESPACE}
-                kubectl rollout status deployment/hello-service -n ${NAMESPACE}
-                kubectl rollout status deployment/profile-service -n ${NAMESPACE}
-                """
-            }
-        }
-
-        stage('Verify Deployment') {
-            steps {
-                sh """
-                echo "===== Pods ====="
-                kubectl get pods -n ${NAMESPACE}
-
-                echo ""
-                echo "===== Services ====="
-                kubectl get svc -n ${NAMESPACE}
-
-                echo ""
-                echo "===== Deployments ====="
-                kubectl get deployments -n ${NAMESPACE}
-                """
             }
         }
     }
