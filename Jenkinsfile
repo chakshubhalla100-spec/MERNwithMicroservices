@@ -32,7 +32,7 @@ pipeline {
 
         stage('Login to Amazon ECR') {
             steps { // FIXED: Added missing 'steps {' block wrapper which was completely broken in your script
-                withCredentials([usernamePassword(credentialsId: 'AWSCredentials_chux', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                withCredentials([usernamePassword(credentialsId: '514454346119', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
                     export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                     export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
