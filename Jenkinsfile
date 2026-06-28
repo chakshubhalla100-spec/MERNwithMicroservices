@@ -80,7 +80,7 @@ pipeline {
                     aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME}
 
                     echo "===== Deploying Application via Helm ====="
-                    helm upgrade --install mern-release . \
+                    helm upgrade --install mern-release ./mern-stack \
                       --namespace ${NAMESPACE} \
                       --set frontend.image=${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG} \
                       --set helloService.image=${ECR_REGISTRY}/mern-hello-service:${IMAGE_TAG} \
