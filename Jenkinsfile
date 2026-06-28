@@ -6,8 +6,8 @@ pipeline {
         AWS_ACCOUNT = '514454346119'
         ECR_REGISTRY = "${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         CLUSTER_NAME = 'mern-cluster'
-        NAMESPACE = 'default' // Synchronized to match your active cluster configuration workspace
-        IMAGE_TAG = "${BUILD_NUMBER}"
+        NAMESPACE = 'default' 
+        IMAGE_TAG = 'latest'
     }
 
     stages {
@@ -21,9 +21,8 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
-                // Triple double quotes are required for variable expansion in Jenkins
                 sh """
-                docker build -t frontend:${IMAGE_TAG} ./frontend
+                docker build -t mern-frontend:${IMAGE_TAG} ./frontend
                 docker build -t hello-service:${IMAGE_TAG} ./backend/helloService
                 docker build -t profile-service:${IMAGE_TAG} ./backend/profileService
                 """
@@ -32,59 +31,55 @@ pipeline {
 
         stage('Login to Amazon ECR') {
             steps {
-                sh """
-                aws ecr get-login-password --region ${AWS_REGION} | \
-                docker login \
-                --username AWS \
-                --password-stdin ${ECR_REGISTRY}
-                """
+                // Resolved the floating credentials block directly inside the proper login stage steps
+                withAWS(credentials: 'AWSCredentials_chux', region: "${AWS_REGION}") {
+                    sh """
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    docker login \
+                    --username AWS \
+                    --password-stdin ${ECR_REGISTRY}
+                    """
+                }
             }
         }
 
         stage('Tag Images') {
             steps {
-                // Fixed paths to incorporate your verified mern- console prefix paths
+                // Fixed localized image tags to accurately match the 'Build Docker Images' definitions
                 sh """
-                docker tag frontend:${IMAGE_TAG} ${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG}
-                docker tag frontend:${IMAGE_TAG} ${ECR_REGISTRY}/mern-frontend:latest
-
+                docker tag mern-frontend:${IMAGE_TAG} ${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG}
                 docker tag hello-service:${IMAGE_TAG} ${ECR_REGISTRY}/mern-hello-service:${IMAGE_TAG}
-                docker tag hello-service:${IMAGE_TAG} ${ECR_REGISTRY}/mern-hello-service:latest
-
                 docker tag profile-service:${IMAGE_TAG} ${ECR_REGISTRY}/mern-profile-service:${IMAGE_TAG}
-                docker tag profile-service:${IMAGE_TAG} ${ECR_REGISTRY}/mern-profile-service:latest
                 """
             }
         }
 
         stage('Push Images to ECR') {
             steps {
+                // Trimmed redundant pushes since your ${IMAGE_TAG} is already hardcoded to 'latest'
                 sh """
                 docker push ${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG}
-                docker push ${ECR_REGISTRY}/mern-frontend:latest
-
                 docker push ${ECR_REGISTRY}/mern-hello-service:${IMAGE_TAG}
-                docker push ${ECR_REGISTRY}/mern-hello-service:latest
-
                 docker push ${ECR_REGISTRY}/mern-profile-service:${IMAGE_TAG}
-                docker push ${ECR_REGISTRY}/mern-profile-service:latest
                 """
             }
         }
 
         stage('Configure kubectl') {
             steps {
-                sh """
-                aws eks update-kubeconfig \
-                --region ${AWS_REGION} \
-                --name ${CLUSTER_NAME}
-                """
+                // Kept your cloud credentials active to allow secure kubectl integration hooks
+                withAWS(credentials: 'aws-ecr-keys', region: "${AWS_REGION}") {
+                    sh """
+                    aws eks update-kubeconfig \
+                    --region ${AWS_REGION} \
+                    --name ${CLUSTER_NAME}
+                    """
+                }
             }
         }
 
         stage('Deploy to EKS') {
             steps {
-                // Aligned container names matching your active deployment specifications exactly
                 sh """
                 kubectl set image deployment/mern-frontend \
                 frontend=${ECR_REGISTRY}/mern-frontend:${IMAGE_TAG} \
@@ -130,7 +125,6 @@ pipeline {
     }
 
     post {
-
         success {
             echo '===================================='
             echo 'Application deployed successfully.'
