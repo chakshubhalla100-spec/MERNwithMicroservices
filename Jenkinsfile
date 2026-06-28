@@ -21,11 +21,10 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
-                // FIXED: Corrected subfolder target paths so Docker finds your microservice contexts
                 sh """
                 docker build -t mern-frontend:${IMAGE_TAG} ./frontend
-                docker build -t hello-service:${IMAGE_TAG} ./backend
-                docker build -t profile-service:${IMAGE_TAG} ./backend
+                docker build --target hello -t hello-service:${IMAGE_TAG} ./backend
+                docker build --target profile -t profile-service:${IMAGE_TAG} ./backend
                 """
             }
         }
@@ -100,7 +99,7 @@ pipeline {
                 }
             }
         }
-    } // FIXED: Re-added the missing closing curly brace for the overall 'stages' wrapper block
+    } // FIXED: Properly aligned wrapper boundary closure parameter formatting
 
     post {
         success {
