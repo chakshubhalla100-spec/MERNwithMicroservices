@@ -14,7 +14,9 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: "{{ .Values.global.accountID }}.dkr.ecr.{{ .Values.global.region }}://{{ .Values.frontend.image }}:{{ .Values.frontend.tag }}"
+          #  CORRECT
+          image: "{{ .Values.frontend.image }}"
+          # image: "{{ .Values.global.accountID }}.dkr.ecr.{{ .Values.global.region }}://{{ .Values.frontend.image }}:{{ .Values.frontend.tag }}"
           ports:
             - containerPort: {{ .Values.frontend.port }}
 ---
